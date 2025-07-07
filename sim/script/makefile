@@ -25,15 +25,17 @@ DEBUG=NODUMP
 TC=0
 SEED=`date +%N`
 UVM_TRACE=
-IS_COV=0
+IS_COV=1
 RAMDOM := $(shell perl -e "print int($(SEED))")
 
 #############COV enable###############
-#ifeq ($(IS_COV),1)
-	vcs_cov_opt = -cm line+cond+fsm+tgl+branch+assert -cm_dir vcs_cov_$(TC)_$(RAMDOM)
-#else
-#	vcs_cov_opt = 
-#endif
+COV_ROOT = coverage
+cov_dir = $(COV_ROOT)/cov_$(TC)_$(RAMDOM)
+ifeq ($(IS_COV),1)
+	vcs_cov_opt = -cm line+cond+fsm+tgl+branch+assert -cm_dir $(cov_dir)
+else
+	vcs_cov_opt = 
+endif
 #######################################
 
 ################main###################
@@ -43,6 +45,7 @@ clean:
 	rm -rf *~ core csrc simv* vc_hdrs.h ucli.key urg* *.log *.fsdb *.vf *.vdb novas.* vdCovLog verdiLog
 
 comp:
+	@mkdir -p $(COV_ROOT)
 	$(VCS) +incdir+. \
 	-f ../tb/filelist/axi_bus.f \
     +incdir+ ../tc/testcase/test_case/$(TC).sv 
@@ -70,18 +73,19 @@ VCS =	vcs -full64 -sverilog -debug_all -timescale=1ns/10ps +notimingcheck +nospe
 		$(vcs_cov_opt) \
 		-l vcs_cmp.log \
 		-P ${VERDI_HOME}/share/PLI/VCS/LINUX64/verdi.tab  ${VERDI_HOME}/share/PLI/VCS/LINUX64/pli.a 
-	
-
 
 
 SIMV = 	./simv +$(UVM_TRACE) +UVM_TESTNAME=$(TC) +UVM_VERBOSITY=$(UVM_VERBOSITY) \
-		+ntb_random_seed=$(SEED) \
+		+ntb_random_seed=$(RAMDOM) \
 		$(vcs_cov_opt) \
-   		-l vcs_run.log
+   		-l $(cov_dir).vdb/vcs_run.log
 
 ###################cov_report#########
+VDB_FILES := $(wildcard $(COV_ROOT)/cov_*.vdb)
 urg:
-	urg -full64 -dir vcs_cov.vdb -report both
+	@echo "Merging coverage from all testcases, found VDB files: $(VDB_FILES)"
+	mkdir -p urg_report
+	urg -full64 -dir $(VDB_FILES) -dbname urg_report/merge.vdb -report urg_report -show tests -grade
 
 verdi:
 	verdi -dbdir simv.daidir -ssf *.fsdb &	

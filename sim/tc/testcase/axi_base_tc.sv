@@ -2,6 +2,7 @@
 `include "../public/apb_vip/apb_pkg.sv"
 `include "../tb/axi_bus_conf.sv"
 `include "../tb/scb/axi_bus_scoreboard.sv"
+`include "../tb/cov/axi_bus_fun_cov.sv"
 `include "../tb/axi_bus_env.sv"
 `include "../tb/vir_sequencer.sv"
 `include "../tc/testcase/sequence_libs/axi_seq_lib_pkg.sv"

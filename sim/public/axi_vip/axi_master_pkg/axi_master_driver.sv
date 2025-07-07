@@ -26,7 +26,7 @@ class AXI_master_driver extends uvm_driver #(AXI_transfer);
   int unsigned                m_rd_addr_indx = 0;
 
   	// This TLM port is used to connect the driver to the scoreboard
-  	uvm_analysis_port #(AXI_transfer) item_collected_port;
+  	// uvm_analysis_port #(AXI_transfer) item_collected_port;
 
 	// reserve fields
 	`uvm_component_utils_begin(AXI_master_driver)
@@ -37,7 +37,7 @@ class AXI_master_driver extends uvm_driver #(AXI_transfer);
   function new (string name, uvm_component parent);
     super.new(name, parent);
     // Create the TLM port
-    item_collected_port = new("item_collected_port", this);
+    // item_collected_port = new("item_collected_port", this);
   endfunction : new
 
   // Additional class methods
@@ -119,9 +119,9 @@ task AXI_master_driver::reset_signals();
       @(posedge m_vif.AXI_ARESET_N);
       `uvm_info(get_type_name(), "Reset observed", UVM_MEDIUM)
         m_vif.drv_cb.AXI_AWID    <= 0; 
-		m_vif.drv_cb.AXI_AWADDR  <= 0; 
-		m_vif.drv_cb.AXI_AWREG   <= 0; 
-		m_vif.drv_cb.AXI_AWLEN   <= 0; 
+		    m_vif.drv_cb.AXI_AWADDR  <= 0; 
+        m_vif.drv_cb.AXI_AWREG   <= 0; 
+        m_vif.drv_cb.AXI_AWLEN   <= 0; 
         m_vif.drv_cb.AXI_AWSIZE  <= 0; 
         m_vif.drv_cb.AXI_AWBURST <= 0; 
         m_vif.drv_cb.AXI_AWLOCK  <= 0; 
@@ -167,7 +167,7 @@ task AXI_master_driver::sent_trx_to_seq();
 		begin
         	drive_transfer(req);
         	// Send transfer to scoreboard via TLM write()
-        	item_collected_port.write(req);
+        	// item_collected_port.write(req);
         	seq_item_port.item_done();
 		end
 		else

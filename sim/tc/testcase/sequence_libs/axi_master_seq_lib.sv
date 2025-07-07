@@ -35,15 +35,16 @@ class AXI_master_seq extends uvm_sequence #(AXI_transfer);
 		begin
 			for(int i = 0; i < len+1; i++)
 			begin
-				data.push_back({$urandom_range(32'hffff_ffff),$urandom_range(32'hffff_ffff)});
+				// data.push_back({$urandom_range(32'hffff_ffff),$urandom_range(32'hffff_ffff)});
+				data.push_back($urandom_range(32'hffff_ffff));
 				//strb.push_back($urandom_range(8'hff));
 				strb_flag = 1;
 				if(0 == strb_flag)
-					strb.push_back(8'h0);
+					strb.push_back(4'h0);
 				else if(1 == strb_flag)
-					strb.push_back(8'hf);
+					strb.push_back(4'hf);
 				else if(2 == strb_flag)
-					strb.push_back(8'hff);
+					strb.push_back($urandom_range(4'hf));
 			end
 		end	
 
@@ -62,8 +63,8 @@ class AXI_master_seq extends uvm_sequence #(AXI_transfer);
 		m_trans.addr_rd_delay= addr_rd_delay;
 		m_trans.data_rd_delay= data_rd_delay;
 
-		//$display("sequence m_trans pkt is:");
-		//m_trans.print();
+		$display("sequence m_trans pkt is:");
+		m_trans.print();
 		finish_item(m_trans);
     endtask
 

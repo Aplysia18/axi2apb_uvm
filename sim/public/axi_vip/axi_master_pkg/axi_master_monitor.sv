@@ -101,8 +101,8 @@ class AXI_master_monitor extends uvm_monitor;
     super.new(name, parent);
 
     // Create the covergroup
-    master_transfer_cg = new();
-    master_transfer_cg.set_inst_name("master_transfer_cg");
+    // master_transfer_cg = new();
+    // master_transfer_cg.set_inst_name("master_transfer_cg");
 
     // Create the TLM port
     item_collected_port = new("item_collected_port", this);
@@ -322,10 +322,10 @@ task AXI_master_monitor::collect_resp_write_trx();
             t_trx.end_cycle = m_cycle;
             t_trx.end_time  = $time;
             void'(end_tr(t_trx));
-            if(coverage_enable) begin
-              trans_collected = t_trx;
-              perform_read_coverage();
-            end
+            // if(coverage_enable) begin
+              // trans_collected = t_trx;
+              // perform_read_coverage();
+            // end
 
             // Send transfer to scoreboard via TLM write()
             item_collected_port.write(t_trx);
@@ -417,10 +417,10 @@ task AXI_master_monitor::collect_data_read_trx();
                   // Send transfer to scoreboard via TLM write()
                   item_collected_port.write(t_trx);
 
-                  if(coverage_enable) begin
-                    trans_collected = t_trx;
-                    perform_write_coverage();
-                  end
+                  // if(coverage_enable) begin
+                    // trans_collected = t_trx;
+                    // perform_write_coverage();
+                  // end
                  // m_rd_queue.del_queued(m_vif.mon_cb.AXI_RID);
                   m_rd_queue.del_queued(vir_read_data_id);
 				  vir_read_data_id++;

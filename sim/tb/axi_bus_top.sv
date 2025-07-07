@@ -153,11 +153,11 @@ module axi_bus_top;
 //--------------------------------------------
 
 	initial begin
-		//`ifdef DUMP
+		`ifdef DUMP
 			$fsdbAutoSwitchDumpfile(800,"waveform.fsdb",50);
 			$fsdbDumpvars(0, axi_bus_top);
 			$fsdbDumpon;
-		//`endif
+		`endif
 	end
    
 
