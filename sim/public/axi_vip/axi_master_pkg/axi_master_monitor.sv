@@ -248,7 +248,7 @@ task AXI_master_monitor::collect_addr_write_trx();
          t_trx.prot    = dec_prot  (m_vif.mon_cb.AXI_AWPROT);
          t_trx.qos     = dec_qos   (m_vif.mon_cb.AXI_AWQOS);
 
-		vir_write_addr_id++;
+        vir_write_addr_id++;
         `uvm_info(get_type_name(), $psprintf("collected write addr addr : %h, len : %h", t_trx.addr, t_trx.len), UVM_MEDIUM)
 
          // extend trx
@@ -283,12 +283,16 @@ task AXI_master_monitor::collect_data_write_trx();
         if (!m_wr_queue.fd_queued(vir_write_data_id)) begin
             m_wr_queue.en_queued(vir_write_data_id);
             t_trx = m_wr_queue.peak_trx();
+            t_trx.id = dec_id(m_vif.mon_cb.AXI_WID);
             t_trx.begin_cycle = m_cycle;
             t_trx.begin_time  = $time;
             void'(begin_tr(t_trx, {$psprintf("axi_master_monitor[%h]", this)}));
        end
 
         t_trx = m_wr_queue.peak_trx();
+        assert(t_trx.id == dec_id(m_vif.mon_cb.AXI_WID))
+                  else `uvm_error("IDERROR", {$psprintf("W channel ID %h is not match AW channel ID %h ",
+                                      dec_id(m_vif.mon_cb.AXI_WID), t_trx.id), get_full_name()});
         t_trx.data.push_back( dec_data(m_vif.mon_cb.AXI_WDATA) );
         t_trx.strb.push_back( dec_strb(m_vif.mon_cb.AXI_WSTRB) );
 
@@ -314,6 +318,9 @@ task AXI_master_monitor::collect_resp_write_trx();
       //if (m_wr_queue.fd_queued(m_vif.mon_cb.AXI_BID)) begin
       if (m_wr_queue.fd_queued(vir_write_resp_id)) begin
         t_trx       = m_wr_queue.peak_trx();
+        assert(t_trx.id == dec_id(m_vif.mon_cb.AXI_BID))
+              else `uvm_error("IDERROR", {$psprintf("B channel ID %h is not match AW channel ID %h",
+                                  dec_id(m_vif.mon_cb.AXI_BID), t_trx.id), get_full_name()});
 
         if (t_trx.addr_done == `TRUE &&
             t_trx.data_done == `TRUE) begin
@@ -400,7 +407,9 @@ task AXI_master_monitor::collect_data_read_trx();
        // if (m_rd_queue.fd_queued(m_vif.mon_cb.AXI_RID)) begin
         if (m_rd_queue.fd_queued(vir_read_data_id)) begin
           t_trx = m_rd_queue.peak_trx();
-
+          assert(t_trx.id == dec_id(m_vif.mon_cb.AXI_RID))
+                else `uvm_error("IDERROR", {$psprintf("R channel ID %h is not match AR channel ID %h",
+                                    dec_id(m_vif.mon_cb.AXI_RID), t_trx.id), get_full_name()});
           if (t_trx.addr_done==`TRUE) begin
 
               t_trx.data.push_back( dec_data(m_vif.mon_cb.AXI_RDATA));

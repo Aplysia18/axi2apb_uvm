@@ -56,6 +56,10 @@ task axi_bus_scoreboard::deal_axi_write_trans();
 				if(tr_temp.resp!=SLVERR) begin
 					`uvm_error("scoreboard", "mst_mon_write_trans wrong awsize should response SLVERR")
 				end
+			end else if (tr_temp.burst==WRAP&&!(tr_temp.len inside {LEN_2, LEN_4, LEN_8, LEN_16})) begin
+				if(tr_temp.resp!=SLVERR) begin
+					`uvm_error("scoreboard", "mst_mon_write_trans wrong wrap len should response SLVERR")
+				end
 			end else
 				for(int i = 0; i < tr_temp.data.size(); i++)
 				begin
@@ -107,6 +111,10 @@ task axi_bus_scoreboard::deal_axi_read_trans();
 			end else if(tr_temp.size!=BYTE_4) begin
 				if(tr_temp.resp!=SLVERR) begin
 					`uvm_error("scoreboard", "mst_mon_read_trans wrong arsize should response SLVERR")
+				end
+			end else if (tr_temp.burst==WRAP && !(tr_temp.len inside {LEN_2, LEN_4, LEN_8, LEN_16})) begin
+				if(tr_temp.resp!=SLVERR) begin
+					`uvm_error("scoreboard", "mst_mon_write_trans wrong wrap len should response SLVERR")
 				end
 			end else 
 				for(int i = 0; i < tr_temp.data.size(); i++)

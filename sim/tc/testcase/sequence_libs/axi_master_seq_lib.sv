@@ -23,27 +23,39 @@ class AXI_master_seq extends uvm_sequence #(AXI_transfer);
 	rand int unsigned 	  addr_rd_delay;
 	rand int unsigned 	  data_rd_delay;
     AXI_transfer 		  m_trans;
-	int                   strb_flag;
+	rand int              strb_flag;	//0: all 0; 1: all 1; 2: random 0/1; 3: random 4: user-defined
 
     extern function new(string name ="AXI_master_seq");
 	extern task reset_phase(uvm_phase phase);
     virtual task body();
 		m_trans = new();
 		start_item(m_trans);
-		size = 2;
 		if(rw == WRITE)
 		begin
+			// if(strb_flag == 0 || strb_flag == 1 || strb_flag == 2 || strb_flag == 3) strb = {};
+			// `uvm_info("strb", $psprintf("strb_flag = %h",strb_flag), UVM_LOW);
 			for(int i = 0; i < len+1; i++)
 			begin
 				// data.push_back({$urandom_range(32'hffff_ffff),$urandom_range(32'hffff_ffff)});
-				data.push_back($urandom_range(32'hffff_ffff));
-				//strb.push_back($urandom_range(8'hff));
-				strb_flag = 1;
+				bit [`DATA_SIZE-1:0] data_temp;
+				randcase
+					1: data_temp = {`DATA_SIZE{1'b1}};
+					8: data_temp = $urandom_range(1,{`DATA_SIZE{1'b1}});
+					1: data_temp = 0;
+				endcase
+				data.push_back(data_temp);
 				if(0 == strb_flag)
 					strb.push_back(4'h0);
 				else if(1 == strb_flag)
 					strb.push_back(4'hf);
-				else if(2 == strb_flag)
+				else if(2 == strb_flag) begin
+					int unsigned strb_temp;
+					randcase
+						8: strb_temp = 4'hf;
+						2: strb_temp = 4'h0;
+					endcase
+					strb.push_back(strb_temp);
+				end else if(3 == strb_flag)
 					strb.push_back($urandom_range(4'hf));
 			end
 		end	

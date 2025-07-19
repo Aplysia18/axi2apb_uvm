@@ -32,8 +32,13 @@ class AXI_master_base_seq extends AXI_base_seq;
   endtask
 
   extern task rand_delay(input bit[31:0] delay_min = 0, bit[31:0] delay_max = 100); 
-  extern task write_data(input bit[31:0] port_num = 0, bit[7:0] write_id = 0, bit[31:0] write_addr = 32'h1000, bit random_flag = 1, int write_len = 9, int write_burst = 1, int addr_delay = 0, int data_delay = 0, int resp_delay = 0);
-  extern task read_data(input bit[31:0] port_num = 0, bit[7:0] read_id = 0, bit[31:0] read_addr = 32'h1000, bit random_flag = 1, int read_len = 9, int read_burst = 1, int addr_delay = 0, int data_delay = 0);
+  extern task write_data(input bit[31:0] port_num = 0, bit[7:0] write_id = 0, bit[31:0] write_addr = 32'h1000, 
+  bit random_flag = 1, int write_len = 9, int write_burst = 1, int write_size = 2, int strb_flag = 1, int unsigned strb[$] = {},
+  int addr_delay = 0, int data_delay = 0, int resp_delay = 0);
+  extern task read_data(input bit[31:0] port_num = 0, bit[7:0] read_id = 0, bit[31:0] read_addr = 32'h1000, 
+  bit random_flag = 1, int read_len = 9, int read_burst = 1, int read_size = 2,
+  int addr_delay = 0, int data_delay = 0);
+	
 endclass : AXI_master_base_seq
 
 task AXI_master_base_seq::rand_delay(input bit[31:0] delay_min = 0, bit[31:0] delay_max = 100);
@@ -43,19 +48,46 @@ task AXI_master_base_seq::rand_delay(input bit[31:0] delay_min = 0, bit[31:0] de
 	repeat(delay_time) @(posedge axi_bus_top.clk);
 endtask
 
-task AXI_master_base_seq::write_data(input bit[31:0] port_num = 0, bit[7:0] write_id = 0, bit[31:0] write_addr = 32'h1000, bit random_flag = 1, int write_len = 9, int write_burst = 1, int addr_delay = 0, int data_delay = 0, int resp_delay = 0);
+task AXI_master_base_seq::write_data(input bit[31:0] port_num = 0, bit[7:0] write_id = 0, bit[31:0] write_addr = 32'h1000, 
+  bit random_flag = 1, int write_len = 9, int write_burst = 1, int write_size = 2, int strb_flag = 1, int unsigned strb[$] = {},
+  int addr_delay = 0, int data_delay = 0, int resp_delay = 0);
 
 	if(1 == random_flag)
 	begin
 		write_len = $urandom_range(15);
 		write_burst = $urandom_range(2);
 	end
-	
-	`uvm_do_on_with(seq[port_num], p_sequencer.axi_bus_mst_sqr[port_num], {seq[port_num].itype==MASTER;seq[port_num].rw==WRITE;seq[port_num].id==write_id;seq[port_num].addr==write_addr;seq[port_num].len==write_len;seq[port_num].burst==write_burst;seq[port_num].addr_wt_delay==addr_delay;seq[port_num].data_wt_delay==data_delay;seq[port_num].resp_wt_delay==resp_delay;});
+
+  // `uvm_info("strb", $psprintf("strb_flag = %h ", strb_flag), UVM_LOW);
+
+  seq[port_num] = new($sformatf("axi_master_base_seq_%0d", port_num));
+  seq[port_num].itype = MASTER;
+  seq[port_num].rw = WRITE;
+  seq[port_num].id = write_id;
+  seq[port_num].addr = write_addr;
+  seq[port_num].len = write_len;
+  seq[port_num].burst = write_burst;
+  seq[port_num].size = write_size;
+  seq[port_num].addr_wt_delay = addr_delay;
+  seq[port_num].data_wt_delay = data_delay;
+  seq[port_num].resp_wt_delay = resp_delay;
+
+	// `uvm_do_on_with(seq[port_num], p_sequencer.axi_bus_mst_sqr[port_num], {seq[port_num].itype==MASTER;seq[port_num].rw==WRITE;
+  // seq[port_num].id==write_id;seq[port_num].addr==write_addr; seq[port_num].len==write_len;seq[port_num].burst==write_burst;seq[port_num].size==write_size;
+  // seq[port_num].addr_wt_delay==addr_delay;seq[port_num].data_wt_delay==data_delay;seq[port_num].resp_wt_delay==resp_delay;});
+
+  if (!(strb_flag inside {0,1,2,3}) && (strb.size() > 0)) begin
+    seq[port_num].strb = strb; // 直接赋值队列
+  end
+  seq[port_num].strb_flag=strb_flag;
+
+  seq[port_num].start(p_sequencer.axi_bus_mst_sqr[port_num]);
 	
 endtask
 
-task AXI_master_base_seq::read_data(input bit[31:0] port_num = 0, bit[7:0] read_id = 0, bit[31:0] read_addr = 32'h1000, bit random_flag = 1, int read_len = 9, int read_burst = 1, int addr_delay = 0, int data_delay = 0);
+task AXI_master_base_seq::read_data(input bit[31:0] port_num = 0, bit[7:0] read_id = 0, bit[31:0] read_addr = 32'h1000, 
+  bit random_flag = 1, int read_len = 9, int read_burst = 1, int read_size = 2,
+  int addr_delay = 0, int data_delay = 0);
 	
 	if(1 == random_flag)
 	begin
@@ -63,7 +95,9 @@ task AXI_master_base_seq::read_data(input bit[31:0] port_num = 0, bit[7:0] read_
 		read_burst = $urandom_range(2);
 	end
 
-	`uvm_do_on_with(seq[port_num], p_sequencer.axi_bus_mst_sqr[port_num], {seq[port_num].itype==MASTER;seq[port_num].rw==READ;seq[port_num].id==read_id;seq[port_num].addr==read_addr;seq[port_num].len==read_len;seq[port_num].burst==read_burst;seq[port_num].addr_rd_delay==addr_delay;seq[port_num].data_rd_delay==data_delay;});
+	`uvm_do_on_with(seq[port_num], p_sequencer.axi_bus_mst_sqr[port_num], {seq[port_num].itype==MASTER;seq[port_num].rw==READ;
+  seq[port_num].id==read_id;seq[port_num].addr==read_addr;seq[port_num].len==read_len;seq[port_num].burst==read_burst;seq[port_num].size==read_size;
+  seq[port_num].addr_rd_delay==addr_delay;seq[port_num].data_rd_delay==data_delay;});
 	
 endtask
 `endif // AXI_MASTER_BASED_SEQ_LIB_SV

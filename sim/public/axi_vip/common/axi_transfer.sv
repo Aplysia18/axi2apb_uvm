@@ -69,7 +69,7 @@ class AXI_transfer extends AXI_base;
   rand direction_enum   rw;
   rand int unsigned     addr;
   rand int unsigned     region;
-  rand len_enum 	    len;
+  rand len_enum 	      len;
   rand byte_enum        size;
   rand burst_enum       burst;
   rand lock_enum        lock;
