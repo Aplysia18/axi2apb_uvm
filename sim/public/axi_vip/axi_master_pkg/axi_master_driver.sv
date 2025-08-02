@@ -1,11 +1,3 @@
-/*--------------------------------------
-// AXI master driver
-// file : axi_master_driver.sv
-// author : FX
-// date : 2018/05/06
-// brief : master driver, transfer TLM level info to pin level info
----------------------------------------*/
-
 `ifndef AXI_MASTER_DRIVER_SV
 `define AXI_MASTER_DRIVER_SV
 
@@ -17,16 +9,10 @@ class AXI_master_driver extends uvm_driver #(AXI_transfer);
   AXI_transfer                m_rd_queue[$];
   int unsigned                m_num_sent;
 
-  event                       event_sent_write_trx;
-  event                       event_sent_read_trx;
-
   int unsigned                m_wr_addr_indx = 0;
   int unsigned                m_wr_data_indx = 0;
 
   int unsigned                m_rd_addr_indx = 0;
-
-  	// This TLM port is used to connect the driver to the scoreboard
-  	// uvm_analysis_port #(AXI_transfer) item_collected_port;
 
 	// reserve fields
 	`uvm_component_utils_begin(AXI_master_driver)
@@ -46,8 +32,8 @@ class AXI_master_driver extends uvm_driver #(AXI_transfer);
 
   extern virtual task run_phase(uvm_phase phase);
   extern virtual function void connect_phase(uvm_phase phase);
+
   extern virtual protected task get_and_drive();
-  extern virtual protected task reset_signals();
   extern virtual protected task drive_transfer(AXI_transfer trx);
  // extern virtual function void report();
 
@@ -58,11 +44,8 @@ class AXI_master_driver extends uvm_driver #(AXI_transfer);
   extern virtual task sent_addr_read_trx();
   extern virtual task received_data_read_trx();
 
-  extern virtual task free_write_trx();
-  extern virtual task free_read_trx();
-
-  extern virtual protected task wait_for_reset();
-  extern virtual protected task sent_trx_to_seq();
+  extern virtual task cleanup_on_reset();
+  extern virtual protected task reset_signals();
 
 endclass : AXI_master_driver
 
@@ -92,100 +75,40 @@ endfunction : connect_phase
 
 // UVM run() phase spawn sub events
 task AXI_master_driver::run_phase(uvm_phase phase);
+  forever begin
+
+    // wait for reset deassert
+    @(posedge m_vif.AXI_ARESET_N);
+    `uvm_info(get_type_name(), "Reset dropped, starting driver", UVM_MEDIUM)
+
+    //normal driver
     fork
       get_and_drive();
-      reset_signals();
       sent_addr_write_trx();
       sent_data_write_trx();
       received_resp_write_trx();
       sent_addr_read_trx();
       received_data_read_trx();
-      free_write_trx();
-      free_read_trx();
-    join
+    join_none
+    
+    // wait for reset assert
+    @(negedge m_vif.AXI_ARESET_N);
+    `uvm_info(get_type_name(), "Reset asserted, stopping driver", UVM_MEDIUM)
+    disable fork;
+
+    cleanup_on_reset();
+  end
 endtask : run_phase
 
 
 // Gets transfers from the sequencer and passes them to the driver.
 task AXI_master_driver::get_and_drive();
-    wait_for_reset();
-    sent_trx_to_seq();
-endtask : get_and_drive
-
-
-// Reset all master signals
-task AXI_master_driver::reset_signals();
     forever begin
-      @(posedge m_vif.AXI_ARESET_N);
-      `uvm_info(get_type_name(), "Reset observed", UVM_MEDIUM)
-        m_vif.drv_cb.AXI_AWID    <= 0; 
-		    m_vif.drv_cb.AXI_AWADDR  <= 0; 
-        m_vif.drv_cb.AXI_AWREG   <= 0; 
-        m_vif.drv_cb.AXI_AWLEN   <= 0; 
-        m_vif.drv_cb.AXI_AWSIZE  <= 0; 
-        m_vif.drv_cb.AXI_AWBURST <= 0; 
-        m_vif.drv_cb.AXI_AWLOCK  <= 0; 
-        m_vif.drv_cb.AXI_AWCACHE <= 0; 
-        m_vif.drv_cb.AXI_AWPROT  <= 0; 
-        m_vif.drv_cb.AXI_AWQOS   <= 0; 
-        m_vif.drv_cb.AXI_AWVALID <= 0; 
-        m_vif.drv_cb.AXI_WID     <= 0; 
-        m_vif.drv_cb.AXI_WDATA   <= 0; 
-        m_vif.drv_cb.AXI_WSTRB   <= 0; 
-        m_vif.drv_cb.AXI_WVALID  <= 0; 
-        m_vif.drv_cb.AXI_WLAST   <= 0; 
-        m_vif.drv_cb.AXI_BREADY  <= 0; 
-        m_vif.drv_cb.AXI_ARID    <= 0; 
-        m_vif.drv_cb.AXI_ARADDR  <= 0; 
-        m_vif.drv_cb.AXI_ARREG   <= 0; 
-        m_vif.drv_cb.AXI_ARLEN   <= 0; 
-        m_vif.drv_cb.AXI_ARSIZE  <= 0; 
-        m_vif.drv_cb.AXI_ARBURST <= 0; 
-        m_vif.drv_cb.AXI_ARLOCK  <= 0; 
-        m_vif.drv_cb.AXI_ARCACHE <= 0; 
-        m_vif.drv_cb.AXI_ARPROT  <= 0; 
-        m_vif.drv_cb.AXI_ARQOS   <= 0; 
-        m_vif.drv_cb.AXI_ARVALID <= 0; 
-        m_vif.drv_cb.AXI_RREADY  <= 0;
-    end
-endtask : reset_signals
-
-
-task AXI_master_driver::wait_for_reset();
-    @(posedge m_vif.AXI_ARESET_N)
-    `uvm_info(get_type_name(), "Reset dropped", UVM_MEDIUM)
-
-endtask : wait_for_reset
-
-
-// get next trx when reset has already done
-task AXI_master_driver::sent_trx_to_seq();
-     forever begin
-        //@m_vif.drv_cb;
-        seq_item_port.get_next_item(req);
-		if(null != req)
-		begin
-        	drive_transfer(req);
-        	// Send transfer to scoreboard via TLM write()
-        	// item_collected_port.write(req);
-        	seq_item_port.item_done();
+      seq_item_port.get_next_item(req);
+      drive_transfer(req);
+      seq_item_port.item_done();
 		end
-		else
-			@m_vif.drv_cb;
-    end
-endtask : sent_trx_to_seq
-
-
-// free write trx
-task AXI_master_driver::free_write_trx();
-
-endtask : free_write_trx
-
-// free read trx
-task AXI_master_driver::free_read_trx();
-
-endtask : free_read_trx
-
+endtask : get_and_drive
 
 // Gets a transfer and drive it into the DUT
 // push the trx to trx async queue
@@ -382,8 +305,56 @@ task AXI_master_driver::received_data_read_trx();
 
 endtask : received_data_read_trx
 
+task AXI_master_driver::cleanup_on_reset();
+  `uvm_info(get_type_name(), "Cleaning up on reset", UVM_MEDIUM)
+  // Reset all queues
+  m_wr_queue.delete();
+  m_rd_queue.delete();
+  m_wr_addr_indx = 0;
+  m_wr_data_indx = 0;
+  m_rd_addr_indx = 0;
 
-// finish read trx
+  // Reset counters
+  m_num_sent = 0;
+
+  // Reset signals
+  reset_signals();
+
+endtask : cleanup_on_reset
+
+// Reset all master signals
+task AXI_master_driver::reset_signals();
+    m_vif.drv_cb.AXI_AWID    <= 0; 
+    m_vif.drv_cb.AXI_AWADDR  <= 0; 
+    m_vif.drv_cb.AXI_AWREG   <= 0; 
+    m_vif.drv_cb.AXI_AWLEN   <= 0; 
+    m_vif.drv_cb.AXI_AWSIZE  <= 0; 
+    m_vif.drv_cb.AXI_AWBURST <= 0; 
+    m_vif.drv_cb.AXI_AWLOCK  <= 0; 
+    m_vif.drv_cb.AXI_AWCACHE <= 0; 
+    m_vif.drv_cb.AXI_AWPROT  <= 0; 
+    m_vif.drv_cb.AXI_AWQOS   <= 0; 
+    m_vif.drv_cb.AXI_AWVALID <= 0; 
+    m_vif.drv_cb.AXI_WID     <= 0; 
+    m_vif.drv_cb.AXI_WDATA   <= 0; 
+    m_vif.drv_cb.AXI_WSTRB   <= 0; 
+    m_vif.drv_cb.AXI_WVALID  <= 0; 
+    m_vif.drv_cb.AXI_WLAST   <= 0; 
+    m_vif.drv_cb.AXI_BREADY  <= 0; 
+    m_vif.drv_cb.AXI_ARID    <= 0; 
+    m_vif.drv_cb.AXI_ARADDR  <= 0; 
+    m_vif.drv_cb.AXI_ARREG   <= 0; 
+    m_vif.drv_cb.AXI_ARLEN   <= 0; 
+    m_vif.drv_cb.AXI_ARSIZE  <= 0; 
+    m_vif.drv_cb.AXI_ARBURST <= 0; 
+    m_vif.drv_cb.AXI_ARLOCK  <= 0; 
+    m_vif.drv_cb.AXI_ARCACHE <= 0; 
+    m_vif.drv_cb.AXI_ARPROT  <= 0; 
+    m_vif.drv_cb.AXI_ARQOS   <= 0; 
+    m_vif.drv_cb.AXI_ARVALID <= 0; 
+    m_vif.drv_cb.AXI_RREADY  <= 0;
+endtask : reset_signals
+
 
 `endif // AXI_MASTER_DRIVER_SV
 

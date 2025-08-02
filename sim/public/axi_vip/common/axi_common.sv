@@ -42,6 +42,7 @@ class AXI_queue extends uvm_object;
   extern virtual function void en_queued(int unsigned id);
   extern virtual function void del_queued(int unsigned id);
   extern virtual function AXI_transfer peak_trx();
+  extern virtual function void clear();
 endclass : AXI_queue
 
 function bit AXI_queue::fd_queued(int unsigned id);
@@ -81,6 +82,12 @@ endfunction : del_queued
 function AXI_transfer AXI_queue::peak_trx();
   return m_match_trx;
 endfunction : peak_trx
+
+function void AXI_queue::clear();
+  m_queue.delete();
+  m_match_trx = null;
+  m_sort_queue.delete();
+endfunction : clear
 
 
 /*---------------------------------

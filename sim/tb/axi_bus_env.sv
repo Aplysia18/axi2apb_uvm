@@ -12,6 +12,7 @@ class axi_bus_env extends uvm_env;
    axi_bus_scoreboard  m_axi_bus_scoreboard;
    apb_slave_agent     m_apb_slave_agent;
    axi_bus_fun_cov     m_axi_bus_fun_cov;
+   reset_agent         m_reset_agent;
 
   function new (string name, uvm_component parent);
     super.new(name, parent);
@@ -31,6 +32,9 @@ function void axi_bus_env::build_phase(uvm_phase phase);
   m_axi_env.assign_conf(m_axi_bus_conf);
   m_apb_slave_agent = apb_slave_agent::type_id::create("m_apb_slave_agent", this);
   m_axi_bus_fun_cov = axi_bus_fun_cov::type_id::create("m_axi_bus_fun_cov", this);
+  uvm_config_db#(bit)::get(this, "", "coverage_enable", m_axi_bus_fun_cov.coverage_enable);
+  m_reset_agent = reset_agent::type_id::create("m_reset_agent", this);
+  m_reset_agent.is_active = UVM_ACTIVE;
 
 endfunction : build_phase
 

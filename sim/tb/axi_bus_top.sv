@@ -17,13 +17,14 @@
 `include "../public/axi_vip/axi_master_pkg/axi_master_vif.sv"
 `include "../public/axi_vip/axi_slaver_pkg/axi_slave_vif.sv"
 `include "../public/apb_vip/apb_slaver_pkg/apb_slave_if.sv"
+`include "../public/reset_vip/reset_vif.sv"
 
 module axi_bus_top;
 
 	parameter PERIOD          = 10;
 
     reg clk;
-	reg resetn;
+	logic resetn;
 	reg psel_s0;
 	reg psel_s1;
 	reg psel_s2;
@@ -31,8 +32,11 @@ module axi_bus_top;
 	reg prdata1;
 	reg prdata2;
 
+	reset_vif reset_vif_io(clk);
 	AXI_master_vif  axi_bus_mst_io[`MST_NUM](clk,clk,resetn);
 	apb_slave_vif   apb_bus_slv_io(clk,clk,resetn);
+
+	assign resetn = reset_vif_io.reset_n;
 
 	DW_axi_x2p     DW_axi_x2p_u (
 				       .aclk             (clk                          ),                       
@@ -105,11 +109,11 @@ module axi_bus_top;
         end
     end
 
-    initial begin
-        resetn = 1;
-        #50;resetn = 0;
-        #50;resetn = 1;
-    end
+    // initial begin
+    //     resetn = 1;
+    //     #50;resetn = 0;
+    //     #50;resetn = 1;
+    // end
 
     initial begin
 
@@ -168,6 +172,7 @@ module axi_bus_top;
     initial begin
         uvm_config_db#(virtual AXI_master_vif)::set(null, "uvm_test_top.m_axi_bus_env.m_axi_env.m_masters[0].*", "AXI_master_vif", axi_bus_mst_io[0]);
         uvm_config_db#(virtual apb_slave_vif)::set(null,"uvm_test_top.m_axi_bus_env.m_apb_slave_agent.*","apb_slave_vif",apb_bus_slv_io);
+		uvm_config_db#(virtual reset_vif)::set(null,"uvm_test_top.m_axi_bus_env.m_reset_agent.*","rst_vif",reset_vif_io);
         run_test();
     end
 

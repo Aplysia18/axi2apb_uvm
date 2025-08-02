@@ -42,7 +42,7 @@ endif
 all: clean comp run
 
 clean:
-	rm -rf *~ core csrc simv* vc_hdrs.h ucli.key urg* *.log *.fsdb *.vf *.vdb novas.* vdCovLog verdiLog
+	rm -rf *~ core csrc simv* vc_hdrs.h ucli.key *.log *.fsdb *.vf *.vdb novas.* vdCovLog verdiLog
 
 comp:
 	@mkdir -p $(COV_ROOT)
@@ -84,6 +84,7 @@ SIMV = 	./simv +$(UVM_TRACE) +UVM_TESTNAME=$(TC) +UVM_VERBOSITY=$(UVM_VERBOSITY)
 VDB_FILES := $(wildcard $(COV_ROOT)/cov_*.vdb)
 urg:
 	@echo "Merging coverage from all testcases, found VDB files: $(VDB_FILES)"
+	rm -rf urg_report
 	mkdir -p urg_report
 	urg -full64 -dir $(VDB_FILES) -dbname urg_report/merge.vdb -report urg_report -show tests -grade
 

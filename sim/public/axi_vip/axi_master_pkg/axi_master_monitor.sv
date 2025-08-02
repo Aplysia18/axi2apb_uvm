@@ -34,63 +34,16 @@ class AXI_master_monitor extends uvm_monitor;
   int unsigned  vir_read_addr_id = 0;
   int unsigned  vir_read_data_id = 0;
 
-  // recorder
-  integer       m_file;
-
   // The following two bits are used to control whether checks and coverage are
   // done in the monitor
   bit checks_enable   = 1;
   bit coverage_enable = 1;
 
-  // The current AXI_transfer
-  protected AXI_transfer trans_collected;
-
   // This TLM port is used to connect the monitor to the scoreboard
   uvm_analysis_port #(AXI_transfer) item_collected_port;
 
-  /*--------------------------------
-  // Covergroup for transfer
-  ----------------------------------*/
-  covergroup master_transfer_cg;
-    TRANS_ADDR : coverpoint trans_collected.addr {
-      bins ZERO     = {0};
-      bins NON_ZERO = {[1:8'hff]};
-    }
-    TRANS_DIRECTION : coverpoint trans_collected.rw {
-      bins READ   = {READ};
-      bins WRITE  = {WRITE};
-    }
-    TRANS_LEN : coverpoint trans_collected.len {
-      bins len_0  = {0 };
-      bins len_1  = {1 };
-      bins len_2  = {2 };
-      bins len_3  = {3 };
-      bins len_4  = {4 };
-      bins len_5  = {5 };
-      bins len_6  = {6 };
-      bins len_7  = {7 };
-      bins len_8  = {8 };
-      bins len_9  = {9 };
-      bins len_10 = {10};
-      bins len_11 = {11};
-      bins len_12 = {12};
-      bins len_13 = {13};
-      bins len_14 = {14};
-      bins len_15 = {15};
-    }
-    TRANS_SIZE : coverpoint trans_collected.size {
-    }
-
-//    TRANS_DATA : coverpoint trans_collected.data {
-//      bins ZERO     = {0};
-//      bins NON_ZERO = {[1:8'hff]};
-//    }
-    TRANS_ADDR_X_TRANS_DIRECTION: cross TRANS_ADDR, TRANS_DIRECTION;
-  endgroup : master_transfer_cg
-
   // Provide UVM automation and utility methods
   `uvm_component_utils_begin(AXI_master_monitor)
-    `uvm_field_int  (m_num_col,       UVM_DEFAULT)
     `uvm_field_int  (checks_enable,   UVM_ALL_ON)
     `uvm_field_int  (coverage_enable, UVM_ALL_ON)
   `uvm_component_utils_end
@@ -99,10 +52,6 @@ class AXI_master_monitor extends uvm_monitor;
   // Constructor - required syntax for UVM automation and utilities
   function new (string name, uvm_component parent);
     super.new(name, parent);
-
-    // Create the covergroup
-    // master_transfer_cg = new();
-    // master_transfer_cg.set_inst_name("master_transfer_cg");
 
     // Create the TLM port
     item_collected_port = new("item_collected_port", this);
@@ -125,9 +74,6 @@ class AXI_master_monitor extends uvm_monitor;
   extern virtual protected task collect_read_transfer();
   extern virtual protected task perform_write_checks();
   extern virtual protected task perform_read_checks();
-  extern virtual protected task perform_write_coverage();
-  extern virtual protected task perform_read_coverage();
-  extern virtual function void report();
 
   extern virtual protected task collect_addr_write_trx();
   extern virtual protected task collect_data_write_trx();
@@ -136,6 +82,8 @@ class AXI_master_monitor extends uvm_monitor;
   extern virtual protected task collect_data_read_trx();
 
   extern virtual protected task collect_cycle_count();
+
+  extern virtual task cleanup_on_reset();
 
 endclass : AXI_master_monitor
 
@@ -164,11 +112,20 @@ function void AXI_master_monitor::connect_phase(uvm_phase phase);
 endfunction : connect_phase
 // UVM run() phase
 task AXI_master_monitor::run_phase(uvm_phase phase);
-  fork
-    collect_write_transfer();
-    collect_read_transfer();
-    collect_cycle_count();
-  join
+  forever begin
+    @(posedge m_vif.AXI_ARESET_N);
+    `uvm_info(get_type_name(), "Reset de-asserted. Starting monitoring.", UVM_MEDIUM)
+    fork
+      collect_write_transfer();
+      collect_read_transfer();
+      collect_cycle_count();
+    join_none
+    @(negedge m_vif.AXI_ARESET_N);
+    `uvm_info(get_type_name(), "Reset asserted. Stopping monitoring.", UVM_MEDIUM)
+    disable fork;
+    cleanup_on_reset();
+  end
+
 endtask : run_phase
 
 /***************************************************************************
@@ -195,8 +152,6 @@ task AXI_master_monitor::collect_write_transfer();
 
     if (checks_enable)
        perform_write_checks();
-    // if (coverage_enable)
-    //    perform_write_coverage();
   join
 endtask : collect_write_transfer
 
@@ -208,8 +163,7 @@ task AXI_master_monitor::collect_read_transfer();
 
     if (checks_enable)
       perform_read_checks();
-    // if (coverage_enable)
-    //   perform_read_coverage();
+
   join
 endtask : collect_read_transfer
 
@@ -329,10 +283,6 @@ task AXI_master_monitor::collect_resp_write_trx();
             t_trx.end_cycle = m_cycle;
             t_trx.end_time  = $time;
             void'(end_tr(t_trx));
-            // if(coverage_enable) begin
-              // trans_collected = t_trx;
-              // perform_read_coverage();
-            // end
 
             // Send transfer to scoreboard via TLM write()
             item_collected_port.write(t_trx);
@@ -426,10 +376,6 @@ task AXI_master_monitor::collect_data_read_trx();
                   // Send transfer to scoreboard via TLM write()
                   item_collected_port.write(t_trx);
 
-                  // if(coverage_enable) begin
-                    // trans_collected = t_trx;
-                    // perform_write_coverage();
-                  // end
                  // m_rd_queue.del_queued(m_vif.mon_cb.AXI_RID);
                   m_rd_queue.del_queued(vir_read_data_id);
 				  vir_read_data_id++;
@@ -440,6 +386,19 @@ task AXI_master_monitor::collect_data_read_trx();
     end
 
 endtask : collect_data_read_trx
+
+task AXI_master_monitor::cleanup_on_reset();
+  `uvm_info(get_type_name(), "Cleaning up on reset", UVM_MEDIUM)
+  m_wr_queue.clear();
+  m_rd_queue.clear();
+  m_mem_map = new();
+  vir_write_addr_id = 0;
+  vir_write_data_id = 0;
+  vir_write_resp_id = 0;
+  vir_read_addr_id  = 0;
+  vir_read_data_id  = 0;
+
+endtask
 
 
 /***************************************************************************
@@ -496,31 +455,6 @@ task AXI_master_monitor::perform_read_checks();
 
 endtask : perform_read_checks
 
-
-/***************************************************************************
-IVB-NOTE : OPTIONAL : master Monitor Coverage : Coverage
--------------------------------------------------------------------------
-Modify the master_transfer_cg coverage group to match your protocol.
-Add new coverage groups, and edit the perform_coverage() method to sample
-them.
-***************************************************************************/
-
-// Triggers coverage events
-task AXI_master_monitor::perform_write_coverage();
-  master_transfer_cg.sample();
-endtask : perform_write_coverage
-
-
-task AXI_master_monitor::perform_read_coverage();
-  master_transfer_cg.sample();
-endtask : perform_read_coverage
-
-
-// UVM report() phase
-function void AXI_master_monitor::report();
-  `uvm_info(get_type_name(), $psprintf("\nReport: AXI master monitor collected %0d transfers", m_num_col),
-    UVM_MEDIUM)
-endfunction : report
 
 `endif // AXI_MASTER_MONITOR_SV
 

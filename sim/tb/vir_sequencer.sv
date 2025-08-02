@@ -3,6 +3,7 @@
 
 class vir_sequencer extends uvm_sequencer;
 	AXI_master_sequencer  axi_bus_mst_sqr[`MST_NUM];  
+    reset_sequencer        rst_sqr;
 
     extern function new(string name,uvm_component parent);
     extern virtual function void build_phase(uvm_phase phase);

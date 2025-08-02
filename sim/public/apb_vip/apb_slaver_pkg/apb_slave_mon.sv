@@ -54,18 +54,22 @@ class apb_slave_mon extends uvm_monitor;
    endfunction // build_phase
 
    virtual task run_phase (uvm_phase phase);
-      fork
-	 	collect_transactions();
-		assert_penable_op();
-      join
+	  forever begin
+		@(posedge vif.APB_ARESET_N);
+		`uvm_info(get_type_name(), "Reset asserted", UVM_MEDIUM)
+		fork
+			collect_transactions();
+			assert_penable_op();
+		join_none
+		@(negedge vif.APB_ARESET_N);
+		`uvm_info(get_type_name(), "Reset deasserted", UVM_MEDIUM)
+		disable fork;
+	  end
    endtask // run_phase
 
    virtual protected task collect_transactions();
      forever begin
-		 txn = new();
-		 if (vif.APB_ARESET_N == 'b0) begin
-		   @(posedge vif.APB_ARESET_N);
-		 end
+		txn = new();
 
 		@(vif.mon_cb iff((vif.psel == 1'b1) && (vif.penable == 1'b1)));
 	 	if (vif.pwrite == 'b0) begin
@@ -86,10 +90,6 @@ class apb_slave_mon extends uvm_monitor;
  
    virtual protected task assert_penable_op();
      forever begin
-		 if (vif.APB_ARESET_N == 'b0) begin
-		   @(posedge vif.APB_ARESET_N);
-		 end
-
 		 @(posedge vif.APB_MON_ACLK iff(vif.mon_cb.psel == 'b1));
 		 @(posedge vif.APB_MON_ACLK);
 		 if(0 == vif.mon_cb.penable)

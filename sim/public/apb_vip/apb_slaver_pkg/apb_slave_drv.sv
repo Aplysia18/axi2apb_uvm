@@ -27,18 +27,14 @@ class apb_slave_drv extends uvm_driver;
   // Additional class methods
   extern virtual task run_phase(uvm_phase phase);
   extern virtual function void connect_phase(uvm_phase phase);
-  extern virtual protected task reset_signals();
-  extern virtual protected task drive_transfer();
- // extern virtual function void report();
 
   extern virtual protected task write_trx_op();
   extern virtual protected task read_trx_op();
   extern virtual protected task pready_pslveer_op();
-  extern virtual protected task get_and_drive();
-  extern virtual protected task wait_for_reset();
-  extern virtual protected task sent_trx_to_seq();
 
-//  extern virtual protected task
+  extern virtual protected task cleanup_on_reset();
+  extern virtual protected task reset_signals();
+
 endclass : apb_slave_drv
 
 //UVM connect_phase
@@ -53,53 +49,20 @@ endfunction : connect_phase
 
 // UVM run() phase
 task apb_slave_drv::run_phase(uvm_phase phase);
+  forever begin
+    @(posedge m_vif.APB_ARESET_N);
+    `uvm_info(get_type_name(), "Reset asserted", UVM_MEDIUM)
     fork
-      get_and_drive();
-      reset_signals();
-    join
+      write_trx_op();
+      read_trx_op();
+      pready_pslveer_op();
+    join_none
+    @(negedge m_vif.APB_ARESET_N);
+    `uvm_info(get_type_name(), "Reset deasserted", UVM_MEDIUM)
+    disable fork;
+    cleanup_on_reset();
+  end
 endtask : run_phase
-
-
-// Gets transfers from the sequencer and passes them to the driver.
-task apb_slave_drv::get_and_drive();
-    wait_for_reset();
-    sent_trx_to_seq();
-	
-endtask : get_and_drive
-
-
-// Reset all slave signals
-task apb_slave_drv::reset_signals();
-    forever begin
-      @(posedge m_vif.APB_ARESET_N);
-      `uvm_info(get_type_name(), "Reset observed", UVM_MEDIUM)
-        m_vif.drv_cb.prdata  <= 0; 
-    end
-endtask : reset_signals
-
-
-task apb_slave_drv::wait_for_reset();
-    wait(!m_vif.APB_ARESET_N)
-    `uvm_info(get_type_name(), "Reset dropped", UVM_MEDIUM)
-endtask : wait_for_reset
-
-
-// get next trx when reset has already done
-// default : set init memory map
-task apb_slave_drv::sent_trx_to_seq();
-  drive_transfer();
-endtask : sent_trx_to_seq
-
-
-// Gets a transfer and drive it into the DUT
-// ps addr_write and data_write can be the same time
-task apb_slave_drv::drive_transfer();
-  fork
-    write_trx_op();
-	read_trx_op();
-	pready_pslveer_op();
-  join
-endtask : drive_transfer
 
 task apb_slave_drv::write_trx_op();
 
@@ -141,6 +104,22 @@ task apb_slave_drv::pready_pslveer_op();
 */
 	join
 endtask : pready_pslveer_op
+
+task apb_slave_drv::cleanup_on_reset();
+    `uvm_info(get_type_name(), "Cleanup on reset", UVM_MEDIUM)
+    // Reset memory
+    foreach (m_mem[i]) begin
+      m_mem[i] = 0;
+    end
+    // Reset signals
+    reset_signals();
+endtask : cleanup_on_reset
+
+// Reset all slave signals
+task apb_slave_drv::reset_signals();
+    `uvm_info(get_type_name(), "Reset observed", UVM_MEDIUM)
+    m_vif.drv_cb.prdata  <= 0; 
+endtask : reset_signals
 `endif // APB_SLAVE_DRV_SV
 
 

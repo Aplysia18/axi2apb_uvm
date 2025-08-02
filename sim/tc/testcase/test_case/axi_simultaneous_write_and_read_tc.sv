@@ -15,10 +15,8 @@ class axi_simultaneous_write_and_read_tc extends axi_base_test;
   endfunction : new
 
   virtual function void build_phase(uvm_phase phase);
-
-	uvm_config_db#(uvm_object_wrapper)::set(this,"v_sqr.main_phase","default_sequence",axi_simultaneous_write_and_read_seq::type_id::get());
-
     super.build_phase(phase);
+	  uvm_config_db#(uvm_object_wrapper)::set(this,"v_sqr.main_phase","default_sequence",axi_simultaneous_write_and_read_seq::type_id::get());
   endfunction : build_phase
 
 endclass : axi_simultaneous_write_and_read_tc

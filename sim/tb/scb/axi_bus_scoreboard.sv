@@ -13,6 +13,8 @@ class axi_bus_scoreboard extends uvm_scoreboard;
   AXI_transfer  mst_mon_write_trans_s[$], mst_mon_read_trans_s[$];
   apb_txn       apb_to_scb_write_trans_s[$], apb_to_scb_read_trans_s[$], mst_mon_write_trans_op_s[$], mst_mon_read_trans_op_s[$];
 
+  uvm_event reset_event;
+
   `uvm_component_utils_begin(axi_bus_scoreboard)
   `uvm_component_utils_end
 
@@ -24,6 +26,7 @@ class axi_bus_scoreboard extends uvm_scoreboard;
     apb_to_scb_imp = new("apb_to_scb_imp", this);
     mst_mon_scb_imp = new("mst_mon_scb_imp", this);
   endfunction : new
+  extern virtual function void build_phase(uvm_phase phase);
 
   extern virtual task run_phase(uvm_phase phase);
   extern function void check_phase(uvm_phase phase);
@@ -35,7 +38,33 @@ class axi_bus_scoreboard extends uvm_scoreboard;
   extern task deal_axi_read_trans();
   extern task deal_write_cmp_data();
   extern task deal_read_cmp_data();
+  
+  extern task flush_queue();
 endclass : axi_bus_scoreboard
+
+function void axi_bus_scoreboard::build_phase(uvm_phase phase);
+	super.build_phase(phase);
+	reset_event = uvm_event_pool::get_global("reset");
+endfunction
+
+
+// UVM run() phase spawn sub events
+task axi_bus_scoreboard::run_phase(uvm_phase phase);
+	forever begin
+		fork
+			deal_axi_write_trans();
+			deal_axi_read_trans();
+			deal_write_cmp_data();
+			deal_read_cmp_data();
+		join_none
+		reset_event.wait_on();
+		disable fork;
+		`uvm_info("axi_bus_scoreboard", "Reset event triggered, flush all the queue", UVM_MEDIUM);
+		flush_queue();
+		#1;
+		// @(posedge axi_bus_top.resetn);
+	end
+endtask : run_phase
 
 task axi_bus_scoreboard::deal_axi_write_trans();
 
@@ -191,15 +220,15 @@ task axi_bus_scoreboard::deal_read_cmp_data();
 	end
 endtask
 
-// UVM run() phase spawn sub events
-task axi_bus_scoreboard::run_phase(uvm_phase phase);
-    fork
-		deal_axi_write_trans();
-		deal_axi_read_trans();
-		deal_write_cmp_data();
-		deal_read_cmp_data();
-    join
-endtask : run_phase
+task axi_bus_scoreboard::flush_queue();
+	`uvm_info("axi_bus_scoreboard", "Flush all the queue", UVM_MEDIUM);
+	mst_mon_write_trans_s.delete();
+    mst_mon_read_trans_s.delete();
+    apb_to_scb_write_trans_s.delete();
+    apb_to_scb_read_trans_s.delete();
+    mst_mon_write_trans_op_s.delete();
+    mst_mon_read_trans_op_s.delete();
+endtask
 
 function void axi_bus_scoreboard::check_phase(uvm_phase phase);
 
